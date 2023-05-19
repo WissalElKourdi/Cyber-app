@@ -1,43 +1,57 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useRef, useState } from 'react';
-import { FlatList,Button, Image, StyleSheet, DrawerLayoutAndroid,KeyboardAvoidingView,Platform,TouchableWithoutFeedback, Keyboard, Text, View,Alert, SafeAreaView,Modal,Pressable, TextInput,  } from 'react-native';
+import React, { useContext, useRef, useState,useEffect } from 'react';
+import { FlatList,Button, Image, StyleSheet, DrawerLayoutAndroid,KeyboardAvoidingView,Platform,TouchableWithoutFeedback, Keyboard, Text, View,Alert, SafeAreaView,Modal,Pressable, TextInput, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-//import { createNativeStackNavigator } from '@react-navigation/native-stack';
-//import * as Font from 'expo-font';
-//import AppLoading from 'expo-app-loading';
+import {AuthContext} from './src/context/AuthContext.js';
+import { AuthProvider } from './src/context/AuthContext.js';
+import axios from 'axios'
 
-//import {
- // DancingScript_400Regular,
-  //DancingScript_500Medium,
-  //DancingScript_600SemiBold,
-  //DancingScript_700Bold
-//} from '@expo-google-fonts/dancing-script'
+import CheckBox from '@react-native-community/checkbox';
+import { db } from './src/firebase.js';
+import { app } from './src/firebase.js';
+//import firestore from '@react-native-firebase/firestore';
 
-//import {useFonts} from 'expo-font';
+//import {firebase } from '@react-native-firebase/database';
+import {uid } from 'uid'
+import { onValue, ref } from 'firebase/database';
+
+import { getFirestore, collection, getDocs, onSnapshot } from 'firebase/firestore';
+
+let globalAccessToken = '';
 const Separator = () => <View style={styles.separator} />;
 //b0d7ff
 
 function HomeScreen({ navigation }){
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisible1, setModalVisible1] = useState(false);
-  //let[fontsLoaded]=useFonts({
-    //DancingScript_400Regular,
-    //DancingScript_500Medium,
-    //DancingScript_600SemiBold,
-    //DancingScript_700Bold
-  //})
-  //if (!fontsLoaded){
-    //return <AppLoading />
-  //}
+
+  const [username, setUsername]=useState('');
+  const [password, setPasword]=useState('');
+  const [Newusername, setNewUsername]=useState('');
+  const [Newpassword, setNewPasword]=useState('');
+  const isGlobalBooleanRef = useRef(false);
+
+  const val= useContext(AuthContext);
+  const [accessToken, setAccessToken] = useState('');
+
+
+  /*const handleSignup =() =>{
+    firebaseauth
+    .createUserWithEmailAndPassword(username,password)
+    .then(userCredentials => {
+      const user = userCredentials.user;
+      console.log(user.username);
+    })
+    .catch (error => alert(error.message))
+  }*/
+  //const {register} = useContext(AuthContext);
   return (
     <View style={styles.container}>
       <View style ={styles.titleContainer}>
         <Text style={{fontWeight: 'bold', fontSize: 35}}> BullyBuster </Text>
          <Image source={require('./assets/DesignLogo.png')} style={styles.logo2} />
       </View>
-
-
       <StatusBar style="auto" />
       <Modal
         animationType="slide"
@@ -54,13 +68,65 @@ function HomeScreen({ navigation }){
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
-       
-              <TextInput placeholder="Username" style={styles.textInput} />
+              
+              <TextInput 
+                style={styles.textInput}
+                value={username}
+                placeholder="Username" 
+                onChangeText={text => setUsername(text)}
+                 />
               <Separator />
-              <TextInput placeholder="Password" style={styles.textInput} />
+              <Text>{username}</Text> 
+              <Text>{val}</Text>
+              <TextInput 
+                  placeholder="Password" 
+                  style={styles.textInput} 
+                  value={password}
+                  onChangeText={text => setPasword(text)} 
+                  secureTextEntry
+                         />
+                <Text>{password}</Text>
               <Pressable
                 style={[styles.button, styles.buttonClose]}
-                onPress={() => navigation.navigate('My Account')}>
+                 
+                onPress={ async () => {
+                    //if(isGlobalBooleanRef){
+                      const formData = new URLSearchParams()
+                      formData.append('username', username)
+                      formData.append('password', password)
+
+                    const response = await fetch("https://myimage-jhs5i76ama-ew.a.run.app/token/", {
+                      method: 'POST',
+                      headers: {
+                        'content-type': 'application/x-www-form-urlencoded',
+                      },
+                      body: formData.toString()
+                    }).then(response => {
+                      response.json().then(data => {
+                        
+                        //console.log(data.access_token)
+                        //setAccessToken(data.access_token)
+                        //console.log({accessToken})
+
+                        if (response.ok) {
+                          globalAccessToken = data.access_token;
+                          console.log(globalAccessToken);
+                          navigation.navigate('My Account');
+                        }
+                      })
+
+                      
+                    })
+                    
+                    
+                     
+                  }
+                    //}
+                    //</View>else {
+                      //<Text>ERROR</Text>
+                    //}
+                  
+                   }>
                 <Text style={styles.textStyle}>Submit</Text>
               </Pressable>
             </View>
@@ -69,6 +135,11 @@ function HomeScreen({ navigation }){
       </KeyboardAvoidingView>
 
     </Modal>
+    
+       
+
+
+
     
     <Modal
         animationType="slide"
@@ -86,13 +157,73 @@ function HomeScreen({ navigation }){
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
              
-              <TextInput placeholder="Username" style={styles.textInput} />
+              <TextInput 
+              placeholder="Username"
+              style={styles.textInput}
+              value={Newusername}
+              onChangeText={text => setNewUsername(text)}
+                 />
               <Separator />
-              <TextInput placeholder="Password" style={styles.textInput} />
+              <TextInput 
+              placeholder="Password" 
+              style={styles.textInput}
+              value={Newpassword}
+              onChangeText={text => setNewPasword(text)}
+              secureTextEntry />
               <Pressable
                 style={[styles.button, styles.buttonClose]}
-                onPress={() => navigation.navigate('Social Media Infos')}>
-                <Text style={styles.textStyle}>Submit</Text>
+                onPress={ async () => {
+
+                  console.log("envoie request")
+
+                
+                  console.log(Newusername)
+                  console.log(Newpassword)
+                   
+                    fetch("https://myimage-jhs5i76ama-ew.a.run.app/users/", {
+                      method: 'POST',
+                      headers: {
+                        'content-type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        username: Newusername,
+                        password: Newpassword
+                      })
+                    })
+                    .then(response => {
+                      console.log("reception 1")
+                      console.log(response.ok)
+                      if (response.ok) {
+
+                        const formData = new URLSearchParams()
+                        formData.append('username', Newusername)
+                        formData.append('password', Newpassword)
+
+                        fetch("https://myimage-jhs5i76ama-ew.a.run.app/token/", {
+                        method: 'POST',
+                        headers: {
+                          'content-type': 'application/x-www-form-urlencoded',
+                        },
+                        body: formData.toString()
+                        }).then(response => {
+                          console.log("reception 2")
+                          console.log(response.ok)
+                          response.json().then(data => {
+                            console.log(data.access_token)
+                            if (response.ok) {
+                              globalAccessToken=data.access_token;
+                              navigation.navigate('Social Media Infos') 
+                            }
+                          })
+                          
+                          
+                        })
+                      }
+                    })
+                }
+                 //handleSignup
+                 }>
+                <Text style={styles.textStyle}>Register</Text>
               </Pressable>
             </View>
           </View>
@@ -117,7 +248,7 @@ function HomeScreen({ navigation }){
   );
 }
 
-function DetailsScreen() {
+  function DetailsScreen() {
   const drawer = useRef<DrawerLayoutAndroid>(null);
   const [drawerPosition, setDrawerPosition] = useState<'left' | 'right'>(
     'left',
@@ -140,6 +271,30 @@ function DetailsScreen() {
       />
     </View>
   );
+ 
+  
+
+  
+
+ 
+
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'messages'), (querySnapshot) => {
+      const updatedMessages = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setMessages(updatedMessages.slice(-7));
+    });
+
+    // Cleanup function to unsubscribe from the snapshot listener
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   return (
     <DrawerLayoutAndroid
     ref={drawer}
@@ -147,21 +302,40 @@ function DetailsScreen() {
     drawerPosition={drawerPosition}
     renderNavigationView={navigationView}>
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Details Screen</Text>
+         {/* Render the messages */}
+      <Text style={styles.alertText}>Alert!</Text>
+         {messages.map((message) => (
+          <View key={message.id}>
+            <Text style={styles.idText}>id : {message.id}</Text>
+            <Text style={styles.socialMedia}>Social Media : {message.reseaux  }</Text>
+            <Text style={styles.contentText}>Content : {message.content  }</Text>
+          </View>
+        ))}
       <Pressable
         style={[styles.button, styles.buttonOpen]}
         onPress={() =>  drawer.current?.openDrawer()}>
         <Text style={styles.textStyle}> My Applications </Text>
       </Pressable>
-
+    
     </View>
     </DrawerLayoutAndroid>
   );
 }
 
+
+
 function SocialMediaDetails({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalVisible1, setModalVisible1] = useState(false);
+  const [modalVisible2, setModalVisible2] = useState(false);
+  const [modalVisible3, setModalVisible3] = useState(false);
+  const [username, setUsername]=useState('');
+  const [password, setPasword]=useState('');
+  const [username2, setUsername2]=useState('');
+  const [username3, setUsername3]=useState('');
+  const [username4, setUsername4]=useState('');
+
+
   return (
     <View style={styles.container}>
       <View>
@@ -169,6 +343,7 @@ function SocialMediaDetails({ navigation }) {
       </View>
       <Separator />
       <StatusBar style="auto" />
+
       <Modal
         animationType="slide"
         transparent={true}
@@ -184,12 +359,35 @@ function SocialMediaDetails({ navigation }) {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
-              <TextInput placeholder="Username" style={styles.textInput} />
+              <TextInput style={styles.textInput}
+                value={username}
+                placeholder="Username" 
+                onChangeText={text => setUsername(text)}
+               />
               <Separator />
-              <TextInput placeholder="Password" style={styles.textInput} />
+              <TextInput style={styles.textInput}
+                value={password}
+                placeholder="Password" 
+                onChangeText={text => setPasword(text)} />
               <Pressable
                 style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(!modalVisible)}>
+                onPress={async () => {
+                 console.log("Bearer " + globalAccessToken)
+                  const response = await fetch("https://myimage-jhs5i76ama-ew.a.run.app/reseaux/", {
+                      method: 'POST',
+                      headers: {
+                        'content-type': 'application/json',
+                        'Authorization': 'Bearer ' + globalAccessToken
+                      },
+                      body: JSON.stringify({
+                        reseaux: "instagram",
+                        username: username,
+                        hashed_password: password,
+                      })
+                    })
+                  setModalVisible(!modalVisible)
+                }
+                }>
                 <Text style={styles.textStyle}>Submit</Text>
               </Pressable>
             </View>
@@ -214,18 +412,135 @@ function SocialMediaDetails({ navigation }) {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.centeredView}>
             <View style={styles.modalView}>
-              <TextInput placeholder="Username" style={styles.textInput} />
+            <TextInput style={styles.textInput}
+                value={username2}
+                placeholder="Username" 
+                onChangeText={text => setUsername2(text)}
+               />
               <Pressable
                 style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible1(!modalVisible1)}>
-                <Text style={styles.textStyle}>Submit</Text>
-              </Pressable>
+                onPress={async () => {
+                  console.log("Bearer " + globalAccessToken)
+                   const response = await fetch("https://myimage-jhs5i76ama-ew.a.run.app/reseaux/", {
+                       method: 'POST',
+                       headers: {
+                         'content-type': 'application/json',
+                         'Authorization': 'Bearer ' + globalAccessToken
+                       },
+                       body: JSON.stringify({
+                         reseaux: "Twitter",
+                         username: username2,
+                         hashed_password :"pw",
+                       })
+                     })
+                   setModalVisible1(!modalVisible1)
+                 }
+                 }>
+                 <Text style={styles.textStyle}>Submit</Text>
+               </Pressable>
             </View>
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
     </Modal>
+
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible2}
+        onRequestClose={() => {
+          Alert.alert('Modal has been closed.');
+          setModalVisible2(!modalVisible2);
+        } }>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+            <TextInput style={styles.textInput}
+                value={username3}
+                placeholder="Username" 
+                onChangeText={text => setUsername3(text)}
+               />
+              <Pressable
+                style={[styles.button, styles.buttonClose]}
+                onPress={async () => {
+                  console.log("Bearer " + globalAccessToken)
+                   const response = await fetch("https://myimage-jhs5i76ama-ew.a.run.app/reseaux/", {
+                       method: 'POST',
+                       headers: {
+                         'content-type': 'application/json',
+                         'Authorization': 'Bearer ' + globalAccessToken
+                       },
+                       body: JSON.stringify({
+                         reseaux: "Pinterest",
+                         username: username3,
+                         hashed_password :"",
+                       })
+                     })
+                   setModalVisible2(!modalVisible2)
+                 }
+                 }>
+                 <Text style={styles.textStyle}>Submit</Text>
+               </Pressable>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+
+    </Modal>
+
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible3}
+        onRequestClose={() => {
+          Alert.alert('Modal has been closed.');
+          setModalVisible3(!modalVisible3);
+        } }>
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+            <TextInput style={styles.textInput}
+                value={username4}
+                placeholder="Username" 
+                onChangeText={text => setUsername4(text)}
+               />
+              <Pressable
+                style={[styles.button, styles.buttonClose]}
+                onPress={async () => {
+                  console.log("Bearer " + globalAccessToken)
+                   const response = await fetch("https://myimage-jhs5i76ama-ew.a.run.app/reseaux/", {
+                       method: 'POST',
+                       headers: {
+                         'content-type': 'application/json',
+                         'Authorization': 'Bearer ' + globalAccessToken
+                       },
+                       body: JSON.stringify({
+                         reseaux: "Tiktok",
+                         username: username4,
+                         hashed_password :"",
+                       })
+                     })
+                   setModalVisible3(!modalVisible3)
+                 }
+                 }>
+                 <Text style={styles.textStyle}>Submit</Text>
+               </Pressable>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+
+    </Modal>
+
     
     
     <Pressable
@@ -242,13 +557,13 @@ function SocialMediaDetails({ navigation }) {
       <Separator />
       <Pressable
         style={[styles.button, styles.buttonOpen]}
-        onPress={() => setModalVisible1(true)}>
+        onPress={() => setModalVisible2(true)}>
         <Text style={styles.textStyle}>Pinterest</Text>
       </Pressable>
       <Separator />
       <Pressable
         style={[styles.button, styles.buttonOpen]}
-        onPress={() => setModalVisible(true)}>
+        onPress={() => setModalVisible3(true)}>
         <Text style={styles.textStyle}>Tiktok</Text>
       </Pressable>
       <Separator />
@@ -276,6 +591,7 @@ export default function App() {
     },
   };
   return (
+    //<AuthProvider>
     <NavigationContainer>
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen name="Home" component={HomeScreen}  />
@@ -283,6 +599,7 @@ export default function App() {
         <Stack.Screen name="Social Media Infos" component={SocialMediaDetails} />
       </Stack.Navigator>
     </NavigationContainer>
+    //</AuthProvider>
   );
 }
 
@@ -387,6 +704,34 @@ const styles = StyleSheet.create({
   logo2: {
     width: 300,
     height: 300,
+  },
+  idText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: 'purple',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  contentText: {
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
+  },
+  socialMedia: {
+    color: '#3366FF', // Cool blue color
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  }, alertText: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    color: 'red',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
 
 });
